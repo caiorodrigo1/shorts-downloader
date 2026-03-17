@@ -13,6 +13,8 @@ python = ">=3.11,<4.0"
 yt-dlp = ">=2024.0.0"
 python-dotenv = ">=1.0.0"
 schedule = ">=1.2.0"
+rich = ">=13.0.0"
+tzdata = "^2025.3"
 
 [build-system]
 requires = ["poetry-core"]

@@ -3,11 +3,14 @@ import logging
 import signal
 import sys
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import schedule
+from rich.panel import Panel
+from rich.table import Table
 
 from shorts_downloader.config import AppConfig, load_config
+from shorts_downloader.console import console, get_rich_handler
 from shorts_downloader.downloader import download_videos
 from shorts_downloader.fetcher import fetch_today_videos
 from shorts_downloader.history import load_downloaded_ids, record_downloads
@@ -18,53 +21,72 @@ shutdown_requested = False
 
 
 def run_job(config: AppConfig) -> None:
-    logger.info("Starting download job")
+    console.print()
+    console.rule("[bold cyan]Shorts Downloader[/bold cyan]")
+    console.print()
 
-    today_date = datetime.now(config.timezone).strftime("%Y%m%d")
+    now = datetime.now(config.timezone)
+    valid_dates = {(now - timedelta(days=d)).strftime("%Y%m%d") for d in range(3)}
     downloaded_ids = load_downloaded_ids(config.history_file)
 
-    logger.info(
-        "Today: %s | Already downloaded: %d videos | Channels: %d | Picking top %d",
-        today_date,
-        len(downloaded_ids),
-        len(config.channels),
-        config.total_videos,
-    )
+    info_table = Table(show_header=False, box=None, padding=(0, 2))
+    info_table.add_column(style="bold")
+    info_table.add_column()
+    info_table.add_row("Data", now.strftime("%d/%m/%Y"))
+    info_table.add_row("Margem", "Ate 48h atras")
+    info_table.add_row("Canais", str(len([c for c in config.channels if c.enabled])))
+    info_table.add_row("Ja baixados", f"{len(downloaded_ids)} videos")
+    info_table.add_row("Top videos", str(config.total_videos))
+    info_table.add_row("Salvar em", str(config.download_dir))
+    console.print(Panel(info_table, title="[bold]Configuracao[/bold]", border_style="cyan"))
+    console.print()
 
     all_videos = []
 
-    for channel in config.channels:
-        if not channel.enabled:
-            logger.info("Skipping disabled channel: %s", channel.name)
-            continue
+    active_channels = [c for c in config.channels if c.enabled]
+    skipped = [c for c in config.channels if not c.enabled]
 
-        logger.info("Processing channel: %s", channel.name)
+    for ch in skipped:
+        console.print(f"  [dim]Pulando canal desativado: {ch.name}[/dim]")
 
+    for channel in active_channels:
+        console.print(f"  [channel]>> {channel.name}[/channel]")
         try:
             videos = fetch_today_videos(
                 channel_url=channel.url,
                 already_downloaded=downloaded_ids,
-                today_date=today_date,
+                valid_dates=valid_dates,
             )
+            if videos:
+                console.print(f"     [success]{len(videos)} shorts encontrados[/success]")
+            else:
+                console.print(f"     [dim]Nenhum short novo hoje[/dim]")
             all_videos.extend(videos)
         except Exception:
-            logger.error(
-                "Failed to fetch videos for %s",
-                channel.name,
-                exc_info=True,
-            )
+            console.print(f"     [error]Erro ao buscar videos![/error]")
+            logger.error("Failed to fetch videos for %s", channel.name, exc_info=True)
+
+    console.print()
 
     if not all_videos:
-        logger.info("No new shorts today from any channel")
+        console.print(Panel(
+            "[dim]Nenhum short novo encontrado hoje em nenhum canal[/dim]",
+            border_style="yellow",
+        ))
     else:
         all_videos.sort(key=lambda v: v.view_count, reverse=True)
         top_videos = all_videos[:config.total_videos]
 
-        logger.info(
-            "Top %d videos across all channels: %s",
-            len(top_videos),
-            ", ".join(f"{v.title} ({v.view_count:,} views)" for v in top_videos),
-        )
+        ranking = Table(title="Top Shorts do Dia", border_style="cyan", title_style="bold cyan")
+        ranking.add_column("#", style="bold", justify="right", width=3)
+        ranking.add_column("Titulo", style="video", max_width=50)
+        ranking.add_column("Views", style="views", justify="right")
+
+        for i, v in enumerate(top_videos, 1):
+            ranking.add_row(str(i), v.title, f"{v.view_count:,}")
+
+        console.print(ranking)
+        console.print()
 
         archive_file = config.download_dir / "yt-dlp-archive.txt"
         new_ids = download_videos(top_videos, config.download_dir, archive_file)
@@ -73,13 +95,15 @@ def run_job(config: AppConfig) -> None:
             record_downloads(config.history_file, new_ids, "all")
             downloaded_ids.update(new_ids)
 
-    logger.info("Download job finished")
+    console.print()
+    console.rule("[bold green]Concluido[/bold green]")
+    console.print()
 
 
 def _handle_signal(signum: int, _frame) -> None:
     global shutdown_requested
     sig_name = signal.Signals(signum).name
-    logger.info("Received %s, shutting down...", sig_name)
+    console.print(f"\n[warning]Recebido {sig_name}, encerrando...[/warning]")
     shutdown_requested = True
 
 
@@ -93,8 +117,9 @@ def main() -> None:
 
     logging.basicConfig(
         level=getattr(logging, config.log_level.upper(), logging.INFO),
-        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S",
+        format="%(message)s",
+        datefmt="%H:%M:%S",
+        handlers=[get_rich_handler()],
     )
 
     if args.now:
@@ -106,11 +131,12 @@ def main() -> None:
         schedule.every().day.at(config.schedule_time, str(config.timezone)).do(
             run_job, config
         )
-        logger.info(
-            "Scheduled daily at %s (%s)",
-            config.schedule_time,
-            config.timezone,
-        )
+        console.print(Panel(
+            f"Agendado para [bold]{config.schedule_time}[/bold] ({config.timezone})\n"
+            f"Pressione [bold]Ctrl+C[/bold] para sair",
+            title="[bold]Modo Agendado[/bold]",
+            border_style="green",
+        ))
 
     signal.signal(signal.SIGINT, _handle_signal)
     signal.signal(signal.SIGTERM, _handle_signal)
@@ -119,7 +145,7 @@ def main() -> None:
         schedule.run_pending()
         time.sleep(30)
 
-    logger.info("Shutdown complete")
+    console.print("[success]Encerrado.[/success]")
 
 
 if __name__ == "__main__":
