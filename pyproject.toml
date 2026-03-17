@@ -1,0 +1,19 @@
+[tool.poetry]
+name = "shorts-downloader"
+version = "0.1.0"
+description = "Automated YouTube Shorts downloader - downloads the most viewed shorts of the day from configured channels"
+authors = []
+packages = [{include = "shorts_downloader"}]
+
+[tool.poetry.scripts]
+shorts-downloader = "shorts_downloader.main:main"
+
+[tool.poetry.dependencies]
+python = ">=3.11,<4.0"
+yt-dlp = ">=2024.0.0"
+python-dotenv = ">=1.0.0"
+schedule = ">=1.2.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
