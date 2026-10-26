@@ -4,7 +4,19 @@
       "Bash(poetry add:*)",
       "Bash(poetry run:*)",
       "Bash(poetry install:*)",
-      "Bash(poetry lock:*)"
+      "Bash(poetry lock:*)",
+      "Bash(poetry env:*)",
+      "Bash(schtasks:*)",
+      "Bash(MSYS_NO_PATHCONV=1 schtasks /Create /SC DAILY /TN \"ShortsDownloader\" /TR \"cmd /c \\\\\"cd /d C:\\\\Projects\\\\shorts-downloader && C:\\\\Users\\\\caior\\\\.local\\\\bin\\\\poetry.exe run shorts-downloader --now --once >> C:\\\\Projects\\\\shorts-downloader\\\\scheduled-run.log 2>&1\\\\\"\" /ST 23:00 /F)",
+      "Bash(MSYS_NO_PATHCONV=1 schtasks /Query /TN \"ShortsDownloader\" /V /FO LIST)",
+      "Bash(\"C:\\\\Users\\\\caior\\\\AppData\\\\Local\\\\pypoetry\\\\Cache\\\\virtualenvs\\\\shorts-downloader-eWsvnS2f-py3.12\\\\Scripts\\\\shorts-downloader.exe\" --now --once)",
+      "Bash(cmd.exe //c \"schtasks /query /fo LIST\")",
+      "Bash(powershell -Command \"Get-ScheduledTask | Where-Object {$_askName -like ''''*short*'''' -or $_askName -like ''''*download*'''' -or $_askName -like ''''*youtube*''''} | Format-List *\")",
+      "Bash(powershell -Command \"Get-ScheduledTask | Where-Object {\\\\$_.TaskName -like '*short*' -or \\\\$_.TaskName -like '*download*' -or \\\\$_.TaskName -like '*youtube*'} | Format-List TaskName,State,TaskPath\")",
+      "Bash(powershell -Command \"Get-ScheduledTask -TaskName 'ShortsDownloader' | Get-ScheduledTaskInfo | Format-List *\")",
+      "Bash(powershell -Command \"\\\\$task = Get-ScheduledTask -TaskName 'ShortsDownloader'; \\\\$task.Actions | Format-List *; \\\\$task.Triggers | Format-List *; \\\\$task.Settings | Format-List *; \\\\$task.Principal | Format-List *\")",
+      "Bash(powershell -Command \"\n\\\\$task = Get-ScheduledTask -TaskName 'ShortsDownloader'\nWrite-Host '=== Action ==='\n\\\\$task.Actions | Format-List Execute,Arguments,WorkingDirectory\nWrite-Host '=== Settings ==='\n\\\\$task.Settings | Format-List DisallowStartIfOnBatteries,StopIfGoingOnBatteries,StartWhenAvailable,ExecutionTimeLimit\nWrite-Host '=== Trigger ==='\n\\\\$task.Triggers | Format-List StartBoundary,DaysInterval\n\")",
+      "Bash(powershell -Command \"Get-ScheduledTask -TaskName ''ShortsDownloader'' | Get-ScheduledTaskInfo | Format-List LastRunTime,LastTaskResult\")"
     ]
   }
 }
